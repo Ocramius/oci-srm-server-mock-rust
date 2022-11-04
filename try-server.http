@@ -1,0 +1,28 @@
+### Get active sessions (should rendere a JSON hashmap)
+GET http://localhost:8089/active-oci-processes
+
+### Start an OCI process (should produce a redirect)
+# @no-redirect
+GET http://localhost:8089/start-oci
+
+### Start an OCI process with a valid product ID
+# @no-redirect
+GET http://localhost:8089/start-oci?goToProduct=12345
+
+### Start an OCI process with an invalid product ID (should produce a 400 error)
+GET http://localhost:8089/start-oci?goToProduct=12345a
+
+### Send cart information to a specific OCI call-up process
+POST http://localhost:8089/oci-call-up/bcd076d4-ba55-4abf-916f-8cdcc16160c5
+Content-Type: application/x-www-form-urlencoded
+
+HAHA=HUHU&HEHE=HIHI2
+
+### Send cart information to a specific OCI call-up process (with OCI data)
+POST http://localhost:8089/oci-call-up/bcd076d4-ba55-4abf-916f-8cdcc16160c5
+Content-Type: application/x-www-form-urlencoded
+
+NEW_ITEM-EXT_PRODUCT_ID%5B1%5D=foo&NEW_ITEM-PRICE%5B1%5D=12.34&NEW_ITEM-DESCRIPTION%5B1%5D=hehe
+
+### Confirm the OCI payment (should happen after call-up!)
+GET http://localhost:8089/confirm-oci-payment/bcd076d4-ba55-4abf-916f-8cdcc16160c5
