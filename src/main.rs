@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde;
 use std::env;
 use std::sync::{Mutex};
+use chrono::Utc;
 use url::Url;
 use urlencoding::encode;
 use uuid::Uuid;
@@ -36,6 +37,12 @@ struct StartOciParameters {
     #[serde(alias = "goToProduct")]
     // Naming of this property is pre-existing, do not change it:
     go_to_product: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct ConfirmOciPaymentParameters {
+    #[serde(alias = "cxmlOrderRequestToken")]
+    cxml_order_request_token: String
 }
 
 async fn active_oci_processes(data: Data<SrmServerData>) -> impl Responder {
@@ -144,6 +151,7 @@ async fn oci_call_up_with_oci_process_id(
 async fn confirm_oci_payment_with_oci_process_id(
     data: Data<SrmServerData>,
     path: web::Path<String>,
+    info: web::Query<ConfirmOciPaymentParameters>,
 ) -> impl Responder {
     let order_request_template = r###"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -227,19 +235,22 @@ async fn confirm_oci_payment_with_oci_process_id(
         .get_mut(oci_process_id.as_str());
 
     let punchout_server_confirmation_uri = data.punchout_server_confirmation_uri.clone();
+    let order_request_token = info.cxml_order_request_token.clone();
 
     match process {
         None => HttpResponse::NotFound()
             .body(format!("Could not find process {}", oci_process_id)),
 
-        Some(process) => {
-            active_processes
-                .entry(oci_process_id)
-                .and_modify(|mut existing| {
-                    existing.cxml_request = Some(order_request_template.to_string())
-                });
+        // @TODO Ugly: we are modifying the collection by reference...
+        Some(mut process) => {
+            process.cxml_request = Some(order_request_template.to_string());
+            // @TODO this was more explicit, but created two references to `process`: trouble
+            // active_processes
+            //     .entry(oci_process_id)
+            //     .and_modify(|mut existing| {
+            //         existing.cxml_request = Some(order_request_template.to_string())
+            //     });
 
-            // @TODO this is blocking: can we do it non-blocking?
             let client = reqwest::Client::new();
 
             // Note: there is no simple way to parse POST parameters from OCI parameters:
@@ -248,32 +259,105 @@ async fn confirm_oci_payment_with_oci_process_id(
             //        * Tooling in Rust doesn't parse `[]` as an array (contrary to PHP)
             // we will therefore keep it as a `serde_json::Value`, and work with that.
 
+            // @TODO all these execution branches crash: they should be replaced with a parser,
+            //       but the input format is just too horrendous.
+            //       once the worker crashed, the shared state is also lost (mutex unusable),
+            //       so we really need to solve this :-)
+            let call_up_data = process.call_up_posted_data
+                .clone()
+                .expect("Call-up must have happened");
+
+            let first_product_id: String = call_up_data.get("NEW_ITEM-EXT_PRODUCT_ID[1]")
+                .expect("NEW_ITEM-EXT_PRODUCT_ID[1] must exist")
+                .as_str()
+                .expect("NEW_ITEM-EXT_PRODUCT_ID[1] must be a string")
+                .to_string(); // @TODO check these conversions with quotes
+
+            let first_product_description: String = call_up_data.get("NEW_ITEM-DESCRIPTION[1]")
+                .expect("NEW_ITEM-DESCRIPTION[1] must exist")
+                .as_str()
+                .expect("NEW_ITEM-DESCRIPTION[1] must be a string")
+                .to_string(); // @TODO check these conversions with quotes
+
+            let total_price = call_up_data.as_object()
+                .expect("Input data must be a hashmap")
+                .iter()
+                .filter(|(key, _)| {
+                    key.starts_with("NEW_ITEM-PRICE")
+                })
+                .fold(0.0, |acc, (_, price)| {
+                    let float_price: f64 = price.as_str()
+                        .expect("Price must be given")
+                        .parse()
+                        .expect("Price must be a f64");
+
+                    acc + float_price
+                });
+
+            let first_product_price: f64 = call_up_data.get("NEW_ITEM-PRICE[1]")
+                .expect("NEW_ITEM-PRICE[1] must exist")
+                .as_str()
+                .expect("Price must be given")
+                .parse()
+                .expect("Price must be a f64");
+
+            let now = Utc::now()
+                .to_rfc3339();
+            let now1 = now.clone();
+            let now2 = now.clone();
+
+            let replacements = Vec::from([
+                ("cxml-order-request-token", order_request_token),
+                ("unique-id", Uuid::new_v4().to_string()),
+                ("timestamp", now1),
+                ("order-id", format!("{}-order-id", oci_process_id)),
+                ("order-date", now2),
+                ("order-amount", total_price.to_string()),
+                ("ship-to-final-client-name", "Example Company Ltd.".to_string()),
+                ("ship-to-deliver-to", "John Doe".to_string()),
+                ("ship-to-street", "Short Street 123/B".to_string()),
+                ("ship-to-city", "Nowhere".to_string()),
+                ("ship-to-postal", "12312".to_string()),
+                ("ship-to-country-code", "AT".to_string()),
+                ("ship-to-country", "Austria".to_string()),
+                ("bill-to-final-client-name", "Example Company Ltd. Billing".to_string()),
+                ("bill-to-deliver-to", "Jane Duh".to_string()),
+                ("bill-to-street", "Long Street 456/C2".to_string()),
+                ("bill-to-city", "Somewhere".to_string()),
+                ("bill-to-postal", "23423".to_string()),
+                ("bill-to-country-code", "UK".to_string()),
+                ("bill-to-country", "United Kingdom".to_string()),
+                ("item-supplier-part-id", first_product_id),
+                ("item-supplier-auxiliary-id", format!("{}_unused-auxiliary-id", oci_process_id)),
+                ("item-price", first_product_price.to_string()),
+                ("item-language-code", "en".to_string()),
+                ("item-description", first_product_description),
+            ]);
+
             // close your eyes: we're interpolating strings directly into XML @_@
-            //                  the only reason this is acceptable is because this is a **MOCK** service,
-            //                  but production systems should use XML builders to prevent XSS/XEE/XXE.
-
-            // let call_up_data = process.call_up_posted_data
-            //     // @TODO test these crashes, turn them into better errors. Use no_panic!
-            //     .expect("Call-up must have happened");
-            //
-            // let description: String = call_up_data.get("NEW_ITEM-EXT_PRODUCT_ID[1]")
-            //     .expect("NEW_ITEM-EXT_PRODUCT_ID[1]")
-            //     .into(); // @TODO check these conversions with quotes
-            // let prices = call_up_data.as_object()
-            //     .iter()
-            //     .filter(|key| {
-            //         // @TODO check if key starts
-            //     })
-
-            // @TODO assemble template here
+            //                  the only reason this is acceptable is because this is a **MOCK**
+            //                  service, but production systems should use XML builders to
+            //                  prevent XSS/XEE/XXE.
+            let xml_string = replacements
+                .iter()
+                .fold(order_request_template.to_string(), |xml_string, (key, replacement)| {
+                    xml_string.replace(format!("%{}%", key).as_str(), replacement.as_str())
+                });
 
             let response = client.post(punchout_server_confirmation_uri)
-                .body(order_request_template.to_string())
+                .body(xml_string)
                 .header("Content-Type", "text/xml")
                 .header("Content-Encoding", "utf8")
                 .send()
                 .await
                 .expect("request performed");
+
+            process.cxml_response = Some(
+                response
+                    .text()
+                    .await
+                    .expect("Could not read response contents")
+            );
 
             HttpResponse::Ok()
                 .insert_header(("Content-Type", "application/json"))
