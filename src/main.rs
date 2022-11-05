@@ -6,6 +6,7 @@ use serde_json::json;
 use serde::{Deserialize, Serialize};
 use std::env;
 use chrono::Utc;
+use hyper::{Body, body, Client, Method, Request};
 use url::Url;
 use urlencoding::encode;
 use uuid::Uuid;
@@ -22,7 +23,7 @@ struct OciProcess {
     call_up_posted_data: Option<serde_json::Value>,
     cxml_request: Option<String>,
     #[serde(alias = "cXMLResponse")]
-    cxml_response: Option<String>
+    cxml_response: Option<String>,
 }
 
 struct SrmServerData {
@@ -41,7 +42,7 @@ struct StartOciParameters {
 #[derive(Deserialize)]
 struct ConfirmOciPaymentParameters {
     #[serde(alias = "cxmlOrderRequestToken")]
-    cxml_order_request_token: String
+    cxml_order_request_token: String,
 }
 
 async fn active_oci_processes(data: Data<SrmServerData>) -> impl Responder {
@@ -250,8 +251,6 @@ async fn confirm_oci_payment_with_oci_process_id(
             //         existing.cxml_request = Some(order_request_template.to_string())
             //     });
 
-            let client = reqwest::Client::new();
-
             // Note: there is no simple way to parse POST parameters from OCI parameters:
             //        * `NEW_ITEM-EXT_PRODUCT_ID` with both dashes and underscores (can't match struct)
             //        * `NEW_ITEM-EXT_PRODUCT_ID[x]` with x starting at 1 (can't match `Vec`)
@@ -343,19 +342,26 @@ async fn confirm_oci_payment_with_oci_process_id(
                     xml_string.replace(format!("%{}%", key).as_str(), replacement.as_str())
                 });
 
-            let response = client.post(punchout_server_confirmation_uri)
-                .body(xml_string)
-                .header("Content-Type", "text/xml")
-                .header("Content-Encoding", "utf8")
-                .send()
+            let response = Client::new()
+                .request(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(punchout_server_confirmation_uri.to_string())
+                        .header("Content-Type", "text/xml")
+                        .header("Content-Encoding", "utf8")
+                        .body(Body::from(xml_string))
+                        .expect("Request assembled")
+                )
                 .await
-                .expect("request performed");
+                .expect("Could not read response contents");
 
             process.cxml_response = Some(
-                response
-                    .text()
-                    .await
-                    .expect("Could not read response contents")
+                String::from_utf8(
+                    body::to_bytes(response.into_body())
+                        .await
+                        .expect("Failed to wait for response body to be streamed")
+                        .to_vec()
+                ).expect("Could not convert response body to a string")
             );
 
             HttpResponse::Ok()
@@ -373,7 +379,7 @@ async fn main() -> std::io::Result<()> {
         id: Uuid::new_v4().to_string(),
         call_up_posted_data: None,
         cxml_request: None,
-        cxml_response: None
+        cxml_response: None,
     });
 
     let data = Data::new(SrmServerData {
