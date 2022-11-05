@@ -1,4 +1,4 @@
-FROM rust:1.65.0-alpine3.16 AS builder
+FROM rust:1.65.0-slim-bullseye AS builder
 
 FROM builder AS oci-srm-server-mock-binary
 
@@ -9,6 +9,20 @@ COPY --link src \
     /build/src
 
 RUN cd /build && \
-    cargo install --path .
+    RUSTFLAGS='-C target-feature=+crt-static' \
+      cargo build \
+        --release \
+        --target x86_64-unknown-linux-gnu \
+    && \
+    cp /build/target/x86_64-unknown-linux-gnu/release/oci-srm-server-mock /oci-srm-server-mock && \
+    cargo clean && \
+    rm -rf /usr/local/cargo/registry/{cache,index,src}
 
-EXPOSE 80
+
+FROM scratch AS oci-srm-server-mock
+
+COPY --link --from=oci-srm-server-mock-binary /oci-srm-server-mock /oci-srm-server-mock
+
+EXPOSE 8089
+
+CMD /oci-srm-server-mock
