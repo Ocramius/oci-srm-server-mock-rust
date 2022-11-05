@@ -5,11 +5,11 @@ use actix_web::web::{Data};
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::sync::{Mutex};
 use chrono::Utc;
 use url::Url;
 use urlencoding::encode;
 use uuid::Uuid;
+use tokio::sync::{Mutex};
 
 #[derive(Serialize, Deserialize)]
 struct OciProcess {
@@ -45,7 +45,7 @@ struct ConfirmOciPaymentParameters {
 }
 
 async fn active_oci_processes(data: Data<SrmServerData>) -> impl Responder {
-    let data = data.active_processes.lock().unwrap();
+    let data = data.active_processes.lock().await;
 
     HttpResponse::Ok()
         .insert_header(("Content-Type", "application/json"))
@@ -58,7 +58,7 @@ async fn start_oci(
 ) -> impl Responder {
     let oci_process_id = Uuid::new_v4();
 
-    data.active_processes.lock().unwrap().insert(oci_process_id.to_string(), OciProcess {
+    data.active_processes.lock().await.insert(oci_process_id.to_string(), OciProcess {
         id: oci_process_id.to_string(),
         call_up_posted_data: None,
         cxml_request: None,
@@ -115,7 +115,7 @@ async fn oci_call_up_with_oci_process_id(
 ) -> impl Responder {
     let oci_process_id = path.into_inner();
 
-    let mut active_processes = data.active_processes.lock().unwrap();
+    let mut active_processes = data.active_processes.lock().await;
 
     let process = active_processes
         .get_mut(oci_process_id.as_str());
@@ -228,7 +228,7 @@ async fn confirm_oci_payment_with_oci_process_id(
 
     let oci_process_id = path.into_inner().to_string();
 
-    let mut active_processes = data.active_processes.lock().unwrap();
+    let mut active_processes = data.active_processes.lock().await;
 
     let process = active_processes
         .get_mut(oci_process_id.as_str());
@@ -369,7 +369,7 @@ async fn confirm_oci_payment_with_oci_process_id(
 async fn main() -> std::io::Result<()> {
     let state: Mutex<HashMap<String, OciProcess>> = Mutex::new(HashMap::new());
 
-    state.lock().unwrap().insert("aaa".to_owned(), OciProcess {
+    state.lock().await.insert("aaa".to_owned(), OciProcess {
         id: Uuid::new_v4().to_string(),
         call_up_posted_data: None,
         cxml_request: None,

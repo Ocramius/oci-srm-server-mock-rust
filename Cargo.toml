@@ -6,7 +6,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Main HTTP framework, used to configure routing and set up an HTTP server
+# Main HTTP framework, used to configure routing and set up aqn HTTP server
 actix-web = "^4.1.2"
 
 # Serialization: convert things from/to JSON
@@ -22,3 +22,9 @@ chrono = "^0.4.22"
 
 # HTTP Client
 reqwest = { version = "^0.11.12", features = ["blocking", "json"] }
+
+# Static analysis
+no-panic = "^0.1.16"
+
+# Async handling, mutex
+tokio = "^1.21.2"
