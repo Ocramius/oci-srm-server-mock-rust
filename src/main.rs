@@ -4,7 +4,6 @@ use actix_web::http::{StatusCode};
 use actix_web::web::{Data};
 use serde_json::json;
 use serde::{Deserialize, Serialize};
-use serde;
 use std::env;
 use std::sync::{Mutex};
 use chrono::Utc;
@@ -114,7 +113,7 @@ async fn oci_call_up_with_oci_process_id(
     path: web::Path<String>,
     info: web::Form<serde_json::Value>,
 ) -> impl Responder {
-    let oci_process_id = path.into_inner().to_string();
+    let oci_process_id = path.into_inner();
 
     let mut active_processes = data.active_processes.lock().unwrap();
 
