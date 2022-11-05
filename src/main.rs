@@ -401,7 +401,7 @@ async fn main() -> std::io::Result<()> {
             .route("/confirm-oci-payment/{ociProcessId}", web::get().to(confirm_oci_payment_with_oci_process_id))
     })
         .workers(2) // more than enough
-        .bind(("127.0.0.1", 8089))?
+        .bind(("0.0.0.0", 8089))?
         .run()
         .await
 }
