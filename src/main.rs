@@ -375,13 +375,6 @@ async fn confirm_oci_payment_with_oci_process_id(
 async fn main() -> std::io::Result<()> {
     let state: Mutex<HashMap<String, OciProcess>> = Mutex::new(HashMap::new());
 
-    state.lock().await.insert("aaa".to_owned(), OciProcess {
-        id: Uuid::new_v4().to_string(),
-        call_up_posted_data: None,
-        cxml_request: None,
-        cxml_response: None,
-    });
-
     let data = Data::new(SrmServerData {
         active_processes: state,
         // @TODO unwrap is unsafe here: can we improve? Some no_panic could help...
