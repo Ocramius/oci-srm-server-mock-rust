@@ -14,8 +14,6 @@ use tokio::sync::{Mutex};
 
 #[derive(Serialize, Deserialize)]
 struct OciProcess {
-    // @TODO we probably want to implement Serialize, Deserialize for Uuid,
-    //       and fix this once and for all
     id: Uuid,
     // We don't know what shape the data submitted to the SRM server has: it can be anything,
     // so we keep it as a JSON Value, which pretty much matches that.
@@ -77,8 +75,7 @@ async fn start_oci(
         ("returntarget", "_parent".to_string()),
     ]);
 
-    // @TODO None is not working for cases with malformed go_to_product! We get a 400 error there!
-    let body = match info.go_to_product {
+    let body = match info.go_to_product.clone() {
         Some(n) => HashMap::from([
             ("PRODUCTID", n.to_string()),
             ("FUNCTION", "DETAILADD".to_string()),
