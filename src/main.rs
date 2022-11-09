@@ -16,7 +16,7 @@ use tokio::sync::{Mutex};
 struct OciProcess {
     // @TODO we probably want to implement Serialize, Deserialize for Uuid,
     //       and fix this once and for all
-    id: String,
+    id: Uuid,
     // We don't know what shape the data submitted to the SRM server has: it can be anything,
     // so we keep it as a JSON Value, which pretty much matches that.
     #[serde(alias = "POST")]
@@ -27,7 +27,7 @@ struct OciProcess {
 }
 
 struct SrmServerData {
-    active_processes: Mutex<HashMap<String, OciProcess>>,
+    active_processes: Mutex<HashMap<Uuid, OciProcess>>,
     punchout_server_login_uri: Url,
     punchout_server_confirmation_uri: Url,
 }
@@ -59,8 +59,8 @@ async fn start_oci(
 ) -> impl Responder {
     let oci_process_id = Uuid::new_v4();
 
-    data.active_processes.lock().await.insert(oci_process_id.to_string(), OciProcess {
-        id: oci_process_id.to_string(),
+    data.active_processes.lock().await.insert(oci_process_id, OciProcess {
+        id: oci_process_id,
         call_up_posted_data: None,
         cxml_request: None,
         cxml_response: None,
@@ -111,7 +111,7 @@ async fn start_oci(
 
 async fn oci_call_up_with_oci_process_id(
     data: Data<SrmServerData>,
-    path: web::Path<String>,
+    path: web::Path<Uuid>,
     info: web::Form<serde_json::Value>,
 ) -> impl Responder {
     let oci_process_id = path.into_inner();
@@ -119,7 +119,7 @@ async fn oci_call_up_with_oci_process_id(
     let mut active_processes = data.active_processes.lock().await;
 
     let process = active_processes
-        .get_mut(oci_process_id.as_str());
+        .get_mut(&oci_process_id);
 
     let parsed_body = info.clone();
 
@@ -150,7 +150,7 @@ async fn oci_call_up_with_oci_process_id(
 
 async fn confirm_oci_payment_with_oci_process_id(
     data: Data<SrmServerData>,
-    path: web::Path<String>,
+    path: web::Path<Uuid>,
     info: web::Query<ConfirmOciPaymentParameters>,
 ) -> impl Responder {
     let order_request_template = r###"
@@ -227,12 +227,12 @@ async fn confirm_oci_payment_with_oci_process_id(
 </cXML>
     "###;
 
-    let oci_process_id = path.into_inner().to_string();
+    let oci_process_id = path.into_inner();
 
     let mut active_processes = data.active_processes.lock().await;
 
     let process = active_processes
-        .get_mut(oci_process_id.as_str());
+        .get_mut(&oci_process_id);
 
     let punchout_server_confirmation_uri = data.punchout_server_confirmation_uri.clone();
     let order_request_token = info.cxml_order_request_token.clone();
@@ -308,7 +308,7 @@ async fn confirm_oci_payment_with_oci_process_id(
                 ("cxml-order-request-token", order_request_token),
                 ("unique-id", Uuid::new_v4().to_string()),
                 ("timestamp", now1),
-                ("order-id", format!("{}-order-id", oci_process_id)),
+                ("order-id", format!("{}-order-id", oci_process_id.to_string())),
                 ("order-date", now2),
                 ("order-amount", total_price.to_string()),
                 ("ship-to-final-client-name", "Example Company Ltd.".to_string()),
@@ -326,7 +326,7 @@ async fn confirm_oci_payment_with_oci_process_id(
                 ("bill-to-country-code", "UK".to_string()),
                 ("bill-to-country", "United Kingdom".to_string()),
                 ("item-supplier-part-id", first_product_id),
-                ("item-supplier-auxiliary-id", format!("{}_unused-auxiliary-id", oci_process_id)),
+                ("item-supplier-auxiliary-id", format!("{}_unused-auxiliary-id", oci_process_id.to_string())),
                 ("item-price", first_product_price.to_string()),
                 ("item-language-code", "en".to_string()),
                 ("item-description", first_product_description),
@@ -373,7 +373,7 @@ async fn confirm_oci_payment_with_oci_process_id(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let state: Mutex<HashMap<String, OciProcess>> = Mutex::new(HashMap::new());
+    let state = Mutex::new(HashMap::new());
 
     let data = Data::new(SrmServerData {
         active_processes: state,
