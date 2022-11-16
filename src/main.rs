@@ -338,7 +338,7 @@ async fn confirm_oci_payment_with_oci_process_id(
 
                             process.cxml_request = Some(xml_string.clone());
 
-                            let response = Client::new()
+                            let cxml_response = Client::new()
                                 .request(
                                     Request::post(punchout_server_confirmation_uri.to_string())
                                         .header("Content-Type", "text/xml")
@@ -356,18 +356,21 @@ async fn confirm_oci_payment_with_oci_process_id(
                                 )
                                 .await;
 
-                            match response {
-                                Ok(response) => {
-                                    process.cxml_response = Some(
-                                        String::from_utf8(
-                                            body::to_bytes(response.into_body())
-                                                .await
-                                                .expect("Failed to wait for response body to be streamed")
-                                                .to_vec()
-                                        ).expect("Could not convert response body to a string")
-                                    );
+                            match cxml_response {
+                                Ok(cxml_response) => {
+                                    match body::to_bytes(cxml_response.into_body()).await {
+                                        Ok(cxml_response_bytes) => {
+                                            match String::from_utf8(cxml_response_bytes.to_vec()) {
+                                                Ok(cxml_response_string) => {
+                                                    process.cxml_response = Some(cxml_response_string);
 
-                                    Ok(Json(json!(*active_processes)))
+                                                    Ok(Json(json!(*active_processes)))
+                                                },
+                                                Err(source) => Err(ErrorInternalServerError(source))
+                                            }
+                                        },
+                                        Err(source) => Err(ErrorInternalServerError(source))
+                                    }
                                 },
                                 Err(source) => Err(ErrorInternalServerError(source))
                             }
