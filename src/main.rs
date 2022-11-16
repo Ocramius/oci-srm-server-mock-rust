@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use actix_web::{web, App, HttpServer, Responder, HttpResponse};
-use actix_web::http::{StatusCode};
-use actix_web::web::{Data};
+use actix_web::web::{Data, Json};
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 use std::env;
+use actix_web::error::ErrorNotFound;
 use chrono::Utc;
 use hyper::{Body, body, Client, Method, Request};
 use url::Url;
@@ -44,11 +44,7 @@ struct ConfirmOciPaymentParameters {
 }
 
 async fn active_oci_processes(data: Data<SrmServerData>) -> impl Responder {
-    let data = data.active_processes.lock().await;
-
-    HttpResponse::Ok()
-        .insert_header(("Content-Type", "application/json"))
-        .body(json!(*data).to_string())
+    Json(json!(*data.active_processes.lock().await))
 }
 
 async fn start_oci(
@@ -99,8 +95,7 @@ async fn start_oci(
             .trim_start_matches(['&'])
     ));
 
-    HttpResponse::Ok()
-        .status(StatusCode::FOUND)
+    HttpResponse::Found()
         // @TODO add session header?
         .insert_header(("Location", login.to_string()))
         .finish()
@@ -123,8 +118,9 @@ async fn oci_call_up_with_oci_process_id(
     // @TODO verify session here? The client should be the same one that created this process.
 
     match process {
-        None => HttpResponse::NotFound()
-            .body(format!("Could not find process {}", oci_process_id)),
+        None => Err(
+            ErrorNotFound(format!("Could not find process {}", oci_process_id))
+        ),
 
         Some(_) => {
             let process = oci_process_id.clone();
@@ -135,12 +131,10 @@ async fn oci_call_up_with_oci_process_id(
                     existing.call_up_posted_data = Some(parsed_body)
                 });
 
-            HttpResponse::Ok()
-                .insert_header(("Content-Type", "application/json"))
-                .body(json!({
-                    "oci": info.clone(),
-                    "ociProcessId": process
-                }).to_string())
+            Ok(Json(json!({
+                "oci": info.clone(),
+                "ociProcessId": process
+            })))
         }
     }
 }
@@ -235,8 +229,9 @@ async fn confirm_oci_payment_with_oci_process_id(
     let order_request_token = info.cxml_order_request_token.clone();
 
     match process {
-        None => HttpResponse::NotFound()
-            .body(format!("Could not find process {}", oci_process_id)),
+        None => Err(
+            ErrorNotFound(format!("Could not find process {}", oci_process_id))
+        ),
 
         // @TODO Ugly: we are modifying the collection by reference...
         Some(mut process) => {
@@ -361,9 +356,9 @@ async fn confirm_oci_payment_with_oci_process_id(
                 ).expect("Could not convert response body to a string")
             );
 
-            HttpResponse::Ok()
-                .insert_header(("Content-Type", "application/json"))
-                .body(json!(*active_processes).to_string())
+            Ok(
+                Json(json!(*active_processes))
+            )
         }
     }
 }
