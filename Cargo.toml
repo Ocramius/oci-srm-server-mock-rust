@@ -28,3 +28,9 @@ no-panic = "^0.1.16"
 
 # Async handling, mutex
 tokio = "^1.21.2"
+
+[profile.release]
+opt-level = "z"     # Optimize for size. This app is not performance-sensitive, but downloaded often.
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+strip = true        # Automatically strip symbols from the binary.
