@@ -260,15 +260,24 @@ async fn confirm_oci_payment_with_oci_process_id(
                                     .filter(|(key, _)| {
                                         key.starts_with("NEW_ITEM-PRICE")
                                     })
-                                    .fold(0.0, |acc, (_, price)| {
-                                        let float_price: f64 = price.as_str()
-                                            .expect("Price must be given")
-                                            .parse()
-                                            .expect("Price must be a f64");
-
-                                        acc + float_price
+                                    .fold(Some(0.0), |acc, (_, price)| {
+                                        price
+                                            .as_str()
+                                            .map(|item_string_price| {
+                                                item_string_price
+                                                    .parse::<f64>()
+                                                    .ok()
+                                            })
+                                            .flatten()
+                                            .map(|float_string_price| {
+                                                acc.map(|accumulator_price| {
+                                                    float_string_price + accumulator_price
+                                                })
+                                            })
+                                            .flatten()
                                     })
-                            }),
+                            })
+                            .flatten(),
                         call_up_data.get("NEW_ITEM-PRICE[1]")
                             .map(|first_product_price| {
                                 first_product_price.as_str()
