@@ -4,7 +4,7 @@ use actix_web::web::{Data, Json};
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 use std::env;
-use actix_web::error::ErrorNotFound;
+use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use chrono::Utc;
 use hyper::{Body, body, Client, Method, Request};
 use url::Url;
@@ -222,144 +222,144 @@ async fn confirm_oci_payment_with_oci_process_id(
 
     let mut active_processes = data.active_processes.lock().await;
 
-    let process = active_processes
-        .get_mut(&oci_process_id);
-
     let punchout_server_confirmation_uri = data.punchout_server_confirmation_uri.clone();
     let order_request_token = info.cxml_order_request_token.clone();
 
-    match process {
+    match active_processes.get_mut(&oci_process_id) {
         None => Err(
             ErrorNotFound(format!("Could not find process {}", oci_process_id))
         ),
 
         // @TODO Ugly: we are modifying the collection by reference...
         Some(mut process) => {
-            // @TODO this was more explicit, but created two references to `process`: trouble
-            // active_processes
-            //     .entry(oci_process_id)
-            //     .and_modify(|mut existing| {
-            //         existing.cxml_request = Some(order_request_template.to_string())
-            //     });
-
             // Note: there is no simple way to parse POST parameters from OCI parameters:
             //        * `NEW_ITEM-EXT_PRODUCT_ID` with both dashes and underscores (can't match struct)
             //        * `NEW_ITEM-EXT_PRODUCT_ID[x]` with x starting at 1 (can't match `Vec`)
             //        * Tooling in Rust doesn't parse `[]` as an array (contrary to PHP)
             // we will therefore keep it as a `serde_json::Value`, and work with that.
 
-            // @TODO all these execution branches crash: they should be replaced with a parser,
-            //       but the input format is just too horrendous.
-            //       once the worker crashed, the shared state is also lost (mutex unusable),
-            //       so we really need to solve this :-)
-            let call_up_data = process.call_up_posted_data
-                .clone()
-                .expect("Call-up must have happened");
+            match process.call_up_posted_data.clone() {
+                None => Err(ErrorBadRequest("Call-up must have happened")),
 
-            let first_product_id: String = call_up_data.get("NEW_ITEM-EXT_PRODUCT_ID[1]")
-                .expect("NEW_ITEM-EXT_PRODUCT_ID[1] must exist")
-                .as_str()
-                .expect("NEW_ITEM-EXT_PRODUCT_ID[1] must be a string")
-                .to_string(); // @TODO check these conversions with quotes
+                Some(call_up_data) => {
+                    match (
+                        call_up_data.get("NEW_ITEM-EXT_PRODUCT_ID[1]")
+                            .map(|first_product_id| {
+                                first_product_id.as_str()
+                            })
+                            .flatten(),
+                        call_up_data.get("NEW_ITEM-DESCRIPTION[1]")
+                            .map(|first_product_description| {
+                                first_product_description.as_str()
+                            })
+                            .flatten(),
+                        call_up_data.as_object()
+                            .map(|call_up_data_items| {
+                                call_up_data_items
+                                    .iter()
+                                    .filter(|(key, _)| {
+                                        key.starts_with("NEW_ITEM-PRICE")
+                                    })
+                                    .fold(0.0, |acc, (_, price)| {
+                                        let float_price: f64 = price.as_str()
+                                            .expect("Price must be given")
+                                            .parse()
+                                            .expect("Price must be a f64");
 
-            let first_product_description: String = call_up_data.get("NEW_ITEM-DESCRIPTION[1]")
-                .expect("NEW_ITEM-DESCRIPTION[1] must exist")
-                .as_str()
-                .expect("NEW_ITEM-DESCRIPTION[1] must be a string")
-                .to_string(); // @TODO check these conversions with quotes
+                                        acc + float_price
+                                    })
+                            }),
+                        call_up_data.get("NEW_ITEM-PRICE[1]")
+                            .map(|first_product_price| {
+                                first_product_price.as_str()
+                            })
+                            .flatten()
+                            .map(|first_product_price| {
+                                first_product_price.parse::<f64>()
+                            })
+                    ) {
+                        (
+                            Some(first_product_id),
+                            Some(first_product_description),
+                            Some(total_price),
+                            Some(Ok(first_product_price))
+                        ) => {
+                            let now = Utc::now()
+                                .to_rfc3339();
+                            let now1 = now.clone();
+                            let now2 = now.clone();
 
-            let total_price = call_up_data.as_object()
-                .expect("Input data must be a hashmap")
-                .iter()
-                .filter(|(key, _)| {
-                    key.starts_with("NEW_ITEM-PRICE")
-                })
-                .fold(0.0, |acc, (_, price)| {
-                    let float_price: f64 = price.as_str()
-                        .expect("Price must be given")
-                        .parse()
-                        .expect("Price must be a f64");
+                            let replacements = Vec::from([
+                                ("cxml-order-request-token", order_request_token),
+                                ("unique-id", Uuid::new_v4().to_string()),
+                                ("timestamp", now1),
+                                ("order-id", format!("{}-order-id", oci_process_id.to_string())),
+                                ("order-date", now2),
+                                ("order-amount", total_price.to_string()),
+                                ("ship-to-final-client-name", "Example Company Ltd.".to_string()),
+                                ("ship-to-deliver-to", "John Doe".to_string()),
+                                ("ship-to-street", "Short Street 123/B".to_string()),
+                                ("ship-to-city", "Nowhere".to_string()),
+                                ("ship-to-postal", "12312".to_string()),
+                                ("ship-to-country-code", "AT".to_string()),
+                                ("ship-to-country", "Austria".to_string()),
+                                ("bill-to-final-client-name", "Example Company Ltd. Billing".to_string()),
+                                ("bill-to-deliver-to", "Jane Duh".to_string()),
+                                ("bill-to-street", "Long Street 456/C2".to_string()),
+                                ("bill-to-city", "Somewhere".to_string()),
+                                ("bill-to-postal", "23423".to_string()),
+                                ("bill-to-country-code", "UK".to_string()),
+                                ("bill-to-country", "United Kingdom".to_string()),
+                                ("item-supplier-part-id", first_product_id.to_string()),
+                                ("item-supplier-auxiliary-id", format!("{}_unused-auxiliary-id", oci_process_id.to_string())),
+                                ("item-price", first_product_price.to_string()),
+                                ("item-language-code", "en".to_string()),
+                                ("item-description", first_product_description.to_string()),
+                            ]);
 
-                    acc + float_price
-                });
+                            // close your eyes: we're interpolating strings directly into XML @_@
+                            //                  the only reason this is acceptable is because this is a **MOCK**
+                            //                  service, but production systems should use XML builders to
+                            //                  prevent XSS/XEE/XXE.
+                            let xml_string = replacements
+                                .iter()
+                                .fold(ORDER_REQUEST_TEMPLATE.to_string(), |xml_string, (key, replacement)| {
+                                    xml_string.replace(format!("%{}%", key).as_str(), replacement.as_str())
+                                });
 
-            let first_product_price: f64 = call_up_data.get("NEW_ITEM-PRICE[1]")
-                .expect("NEW_ITEM-PRICE[1] must exist")
-                .as_str()
-                .expect("Price must be given")
-                .parse()
-                .expect("Price must be a f64");
+                            process.cxml_request = Some(xml_string.clone());
 
-            let now = Utc::now()
-                .to_rfc3339();
-            let now1 = now.clone();
-            let now2 = now.clone();
+                            // @TODO add another match here
+                            let response = Client::new()
+                                .request(
+                                    Request::builder()
+                                        .method(Method::POST)
+                                        .uri(punchout_server_confirmation_uri.to_string())
+                                        .header("Content-Type", "text/xml")
+                                        .header("Content-Encoding", "utf8")
+                                        .body(Body::from(xml_string))
+                                        .expect("Request assembled")
+                                )
+                                .await
+                                .expect("Could not read response contents");
 
-            let replacements = Vec::from([
-                ("cxml-order-request-token", order_request_token),
-                ("unique-id", Uuid::new_v4().to_string()),
-                ("timestamp", now1),
-                ("order-id", format!("{}-order-id", oci_process_id.to_string())),
-                ("order-date", now2),
-                ("order-amount", total_price.to_string()),
-                ("ship-to-final-client-name", "Example Company Ltd.".to_string()),
-                ("ship-to-deliver-to", "John Doe".to_string()),
-                ("ship-to-street", "Short Street 123/B".to_string()),
-                ("ship-to-city", "Nowhere".to_string()),
-                ("ship-to-postal", "12312".to_string()),
-                ("ship-to-country-code", "AT".to_string()),
-                ("ship-to-country", "Austria".to_string()),
-                ("bill-to-final-client-name", "Example Company Ltd. Billing".to_string()),
-                ("bill-to-deliver-to", "Jane Duh".to_string()),
-                ("bill-to-street", "Long Street 456/C2".to_string()),
-                ("bill-to-city", "Somewhere".to_string()),
-                ("bill-to-postal", "23423".to_string()),
-                ("bill-to-country-code", "UK".to_string()),
-                ("bill-to-country", "United Kingdom".to_string()),
-                ("item-supplier-part-id", first_product_id),
-                ("item-supplier-auxiliary-id", format!("{}_unused-auxiliary-id", oci_process_id.to_string())),
-                ("item-price", first_product_price.to_string()),
-                ("item-language-code", "en".to_string()),
-                ("item-description", first_product_description),
-            ]);
+                            process.cxml_response = Some(
+                                String::from_utf8(
+                                    body::to_bytes(response.into_body())
+                                        .await
+                                        .expect("Failed to wait for response body to be streamed")
+                                        .to_vec()
+                                ).expect("Could not convert response body to a string")
+                            );
 
-            // close your eyes: we're interpolating strings directly into XML @_@
-            //                  the only reason this is acceptable is because this is a **MOCK**
-            //                  service, but production systems should use XML builders to
-            //                  prevent XSS/XEE/XXE.
-            let xml_string = replacements
-                .iter()
-                .fold(ORDER_REQUEST_TEMPLATE.to_string(), |xml_string, (key, replacement)| {
-                    xml_string.replace(format!("%{}%", key).as_str(), replacement.as_str())
-                });
-
-            process.cxml_request = Some(xml_string.clone());
-
-            let response = Client::new()
-                .request(
-                    Request::builder()
-                        .method(Method::POST)
-                        .uri(punchout_server_confirmation_uri.to_string())
-                        .header("Content-Type", "text/xml")
-                        .header("Content-Encoding", "utf8")
-                        .body(Body::from(xml_string))
-                        .expect("Request assembled")
-                )
-                .await
-                .expect("Could not read response contents");
-
-            process.cxml_response = Some(
-                String::from_utf8(
-                    body::to_bytes(response.into_body())
-                        .await
-                        .expect("Failed to wait for response body to be streamed")
-                        .to_vec()
-                ).expect("Could not convert response body to a string")
-            );
-
-            Ok(
-                Json(json!(*active_processes))
-            )
+                            Ok(
+                                Json(json!(*active_processes))
+                            )
+                        },
+                        _ => Err(ErrorBadRequest("Provided OCI data is not well formed, and the cXML <OrderRequest/> was **NOT** sent."))
+                    }
+                }
+            }
         }
     }
 }
