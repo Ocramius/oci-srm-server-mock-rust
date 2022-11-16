@@ -43,6 +43,80 @@ struct ConfirmOciPaymentParameters {
     cxml_order_request_token: String,
 }
 
+const ORDER_REQUEST_TEMPLATE: &str = r###"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/1.2.014/cXML.dtd">
+<cXML payloadID="%unique-id%" timestamp="%timestamp%">
+    <Header>
+        <From>
+            <Credential domain="SystemID">
+                <Identity>nobody cares</Identity>
+                <SharedSecret>%cxml-order-request-token%</SharedSecret>
+            </Credential>
+        </From>
+        <To>
+            <Credential domain="NetworkId">
+                <Identity>punchout.crowdfox.test</Identity>
+            </Credential>
+        </To>
+        <Sender>
+            <Credential domain="NetworkId">
+                <Identity>customer-system</Identity>
+            </Credential>
+            <UserAgent>A cXML installation</UserAgent>
+        </Sender>
+    </Header>
+    <Request>
+        <OrderRequest>
+            <OrderRequestHeader orderID="%order-id%" orderDate="%order-date%">
+                <Total>
+                    <Money currency="EUR">%order-amount%</Money>
+                </Total>
+                <ShipTo>
+                    <Address>
+                        <Name xml:lang="de">%ship-to-final-client-name%</Name>
+                        <PostalAddress>
+                            <DeliverTo>%ship-to-deliver-to%</DeliverTo>
+                            <Street>%ship-to-street%</Street>
+                            <City>%ship-to-city%</City>
+                            <PostalCode>%ship-to-postal%</PostalCode>
+                            <Country isoCountryCode="%ship-to-country-code%">%ship-to-country%</Country>
+                        </PostalAddress>
+                    </Address>
+                </ShipTo>
+                <BillTo>
+                    <Address>
+                        <Name xml:lang="de">%bill-to-final-client-name%</Name>
+                        <PostalAddress>
+                            <DeliverTo>%bill-to-deliver-to%</DeliverTo>
+                            <Street>%bill-to-street%</Street>
+                            <City>%bill-to-city%</City>
+                            <PostalCode>%bill-to-postal%</PostalCode>
+                            <Country isoCountryCode="%bill-to-country-code%">%bill-to-country%</Country>
+                        </PostalAddress>
+                        <Email>me@example.com</Email>
+                    </Address>
+                </BillTo>
+            </OrderRequestHeader>
+            <ItemOut quantity="10">
+                <ItemID>
+                    <SupplierPartID>%item-supplier-part-id%</SupplierPartID>
+                    <SupplierPartAuxiliaryID>%item-supplier-auxiliary-id%</SupplierPartAuxiliaryID>
+                </ItemID>
+                <ItemDetail>
+                    <UnitPrice>
+                        <Money currency="EUR">%item-price%</Money>
+                    </UnitPrice>
+                    <Description xml:lang="%item-language-code%">%item-description%</Description>
+                    <UnitOfMeasure>H87</UnitOfMeasure> <!-- H87 = piece -->
+                    <Classification domain="SupplierPartID">%item-supplier-part-id%</Classification>
+                </ItemDetail>
+            </ItemOut>
+        </OrderRequest>
+    </Request>
+</cXML>
+    "###;
+
 async fn active_oci_processes(data: Data<SrmServerData>) -> impl Responder {
     Json(json!(*data.active_processes.lock().await))
 }
@@ -144,80 +218,6 @@ async fn confirm_oci_payment_with_oci_process_id(
     path: web::Path<Uuid>,
     info: web::Query<ConfirmOciPaymentParameters>,
 ) -> impl Responder {
-    let order_request_template = r###"
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/1.2.014/cXML.dtd">
-<cXML payloadID="%unique-id%" timestamp="%timestamp%">
-    <Header>
-        <From>
-            <Credential domain="SystemID">
-                <Identity>nobody cares</Identity>
-                <SharedSecret>%cxml-order-request-token%</SharedSecret>
-            </Credential>
-        </From>
-        <To>
-            <Credential domain="NetworkId">
-                <Identity>punchout.crowdfox.test</Identity>
-            </Credential>
-        </To>
-        <Sender>
-            <Credential domain="NetworkId">
-                <Identity>customer-system</Identity>
-            </Credential>
-            <UserAgent>A cXML installation</UserAgent>
-        </Sender>
-    </Header>
-    <Request>
-        <OrderRequest>
-            <OrderRequestHeader orderID="%order-id%" orderDate="%order-date%">
-                <Total>
-                    <Money currency="EUR">%order-amount%</Money>
-                </Total>
-                <ShipTo>
-                    <Address>
-                        <Name xml:lang="de">%ship-to-final-client-name%</Name>
-                        <PostalAddress>
-                            <DeliverTo>%ship-to-deliver-to%</DeliverTo>
-                            <Street>%ship-to-street%</Street>
-                            <City>%ship-to-city%</City>
-                            <PostalCode>%ship-to-postal%</PostalCode>
-                            <Country isoCountryCode="%ship-to-country-code%">%ship-to-country%</Country>
-                        </PostalAddress>
-                    </Address>
-                </ShipTo>
-                <BillTo>
-                    <Address>
-                        <Name xml:lang="de">%bill-to-final-client-name%</Name>
-                        <PostalAddress>
-                            <DeliverTo>%bill-to-deliver-to%</DeliverTo>
-                            <Street>%bill-to-street%</Street>
-                            <City>%bill-to-city%</City>
-                            <PostalCode>%bill-to-postal%</PostalCode>
-                            <Country isoCountryCode="%bill-to-country-code%">%bill-to-country%</Country>
-                        </PostalAddress>
-                        <Email>me@example.com</Email>
-                    </Address>
-                </BillTo>
-            </OrderRequestHeader>
-            <ItemOut quantity="10">
-                <ItemID>
-                    <SupplierPartID>%item-supplier-part-id%</SupplierPartID>
-                    <SupplierPartAuxiliaryID>%item-supplier-auxiliary-id%</SupplierPartAuxiliaryID>
-                </ItemID>
-                <ItemDetail>
-                    <UnitPrice>
-                        <Money currency="EUR">%item-price%</Money>
-                    </UnitPrice>
-                    <Description xml:lang="%item-language-code%">%item-description%</Description>
-                    <UnitOfMeasure>H87</UnitOfMeasure> <!-- H87 = piece -->
-                    <Classification domain="SupplierPartID">%item-supplier-part-id%</Classification>
-                </ItemDetail>
-            </ItemOut>
-        </OrderRequest>
-    </Request>
-</cXML>
-    "###;
-
     let oci_process_id = path.into_inner();
 
     let mut active_processes = data.active_processes.lock().await;
@@ -235,7 +235,6 @@ async fn confirm_oci_payment_with_oci_process_id(
 
         // @TODO Ugly: we are modifying the collection by reference...
         Some(mut process) => {
-            process.cxml_request = Some(order_request_template.to_string());
             // @TODO this was more explicit, but created two references to `process`: trouble
             // active_processes
             //     .entry(oci_process_id)
@@ -330,9 +329,11 @@ async fn confirm_oci_payment_with_oci_process_id(
             //                  prevent XSS/XEE/XXE.
             let xml_string = replacements
                 .iter()
-                .fold(order_request_template.to_string(), |xml_string, (key, replacement)| {
+                .fold(ORDER_REQUEST_TEMPLATE.to_string(), |xml_string, (key, replacement)| {
                     xml_string.replace(format!("%{}%", key).as_str(), replacement.as_str())
                 });
+
+            process.cxml_request = Some(xml_string.clone());
 
             let response = Client::new()
                 .request(
