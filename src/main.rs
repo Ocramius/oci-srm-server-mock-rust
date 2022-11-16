@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use chrono::Utc;
-use hyper::{Body, body, Client, Method, Request};
+use hyper::{Body, body, Client, Request};
 use url::Url;
 use urlencoding::encode;
 use uuid::Uuid;
@@ -341,13 +341,19 @@ async fn confirm_oci_payment_with_oci_process_id(
                             // @TODO add another match here
                             let response = Client::new()
                                 .request(
-                                    Request::builder()
-                                        .method(Method::POST)
-                                        .uri(punchout_server_confirmation_uri.to_string())
+                                    Request::post(punchout_server_confirmation_uri.to_string())
                                         .header("Content-Type", "text/xml")
                                         .header("Content-Encoding", "utf8")
                                         .body(Body::from(xml_string))
-                                        .expect("Request assembled")
+                                        .expect(
+                                            r###"
+                                            This can only fail if the request builder is misused,
+                                            like if we skip configuring the URI of a request.
+                                            In theory, this will never fail, but the request
+                                            builder is not designed to be type-safe in this
+                                            regard, so we still have a potential panic here.
+                                            "###
+                                        )
                                 )
                                 .await
                                 .expect("Could not read response contents");
@@ -364,7 +370,7 @@ async fn confirm_oci_payment_with_oci_process_id(
                             Ok(
                                 Json(json!(*active_processes))
                             )
-                        },
+                        }
                         _ => Err(ErrorBadRequest("Provided OCI data is not well formed, and the cXML <OrderRequest/> was **NOT** sent."))
                     }
                 }
