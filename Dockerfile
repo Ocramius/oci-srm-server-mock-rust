@@ -21,6 +21,11 @@ RUN cd /build && \
 
 FROM scratch AS oci-srm-server-mock
 
+ENV OCI_SRM_SERVER_MOCK_PORT="80" \
+    OCI_SRM_SERVER_MOCK_BASE_URL="http://oci-srm-server-mock/" \
+    PUNCHOUT_SERVER_LOGIN_URI="http://punchout-server/punch-in?foo=bar&pass=example-supersecret" \
+    PUNCHOUT_SERVER_CONFIRMATION_URI="http://punchout-server/cxml-order-request-endpoint"
+
 COPY --link --from=oci-srm-server-mock-binary /oci-srm-server-mock /oci-srm-server-mock
 
 EXPOSE 80

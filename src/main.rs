@@ -28,6 +28,7 @@ struct SrmServerData {
     active_processes: Mutex<HashMap<Uuid, OciProcess>>,
     punchout_server_login_uri: Url,
     punchout_server_confirmation_uri: Url,
+    self_base_url: Url,
 }
 
 #[derive(Deserialize)]
@@ -134,11 +135,8 @@ async fn start_oci(
         cxml_response: None,
     });
 
-    // @TODO start session here? Set OCI id into session.
-    //       note: that's only used to verify returning clients.
-
     let mut oci_login_parameters = HashMap::from([
-        ("HOOK_URL", format!("https://oci-srm-server-mock/oci-call-up/{}", oci_process_id)),
+        ("HOOK_URL", format!("{}oci-call-up/{}", data.self_base_url, oci_process_id)),
         ("OCI_VERSION", "4.0".to_string()),
         ("OPI_VERSION", "1.0".to_string()),
         ("http_content_charset", "utf-8".to_string()),
@@ -397,14 +395,28 @@ async fn confirm_oci_payment_with_oci_process_id(
 async fn main() -> std::io::Result<()> {
     let state = Mutex::new(HashMap::new());
 
+    let port = env::var("OCI_SRM_SERVER_MOCK_PORT")
+        .expect("OCI_SRM_SERVER_MOCK_PORT must be provided")
+        .parse()
+        .expect("OCI_SRM_SERVER_MOCK_PORT must be an unsigned integer");
+
     let data = Data::new(SrmServerData {
         active_processes: state,
-        // @TODO unwrap is unsafe here: can we improve? Some no_panic could help...
-        punchout_server_login_uri: Url::parse(env::var("PUNCHOUT_SERVER_LOGIN_URI").unwrap().as_str())
-            .expect("PUNCHOUT_SERVER_LOGIN_URI must be a valid URI"),
-        // @TODO unwrap is unsafe here: can we improve? Some no_panic could help...
-        punchout_server_confirmation_uri: Url::parse(env::var("PUNCHOUT_SERVER_CONFIRMATION_URI").unwrap().as_str())
-            .expect("PUNCHOUT_SERVER_CONFIRMATION_URI must be a valid URI"),
+        punchout_server_login_uri: Url::parse(
+            env::var("PUNCHOUT_SERVER_LOGIN_URI")
+                .expect("PUNCHOUT_SERVER_LOGIN_URI must be provided")
+                .as_str()
+        ).expect("PUNCHOUT_SERVER_LOGIN_URI must be a valid URI"),
+        punchout_server_confirmation_uri: Url::parse(
+            env::var("PUNCHOUT_SERVER_CONFIRMATION_URI")
+                .unwrap()
+                .as_str()
+        ).expect("PUNCHOUT_SERVER_CONFIRMATION_URI must be a valid URI"),
+        self_base_url: Url::parse(
+            env::var("OCI_SRM_SERVER_MOCK_BASE_URL")
+                .expect("OCI_SRM_SERVER_MOCK_BASE_URL must be provided")
+                .as_str()
+        ).expect("OCI_SRM_SERVER_MOCK_BASE_URL must be a valid URL")
     });
 
     HttpServer::new(move || {
@@ -415,7 +427,7 @@ async fn main() -> std::io::Result<()> {
             .route("/oci-call-up/{ociProcessId}", web::post().to(oci_call_up_with_oci_process_id))
             .route("/confirm-oci-payment/{ociProcessId}", web::get().to(confirm_oci_payment_with_oci_process_id))
     })
-        .bind(("0.0.0.0", 80))?
+        .bind(("0.0.0.0", port))?
         .run()
         .await
 }
