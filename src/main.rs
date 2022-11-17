@@ -57,7 +57,7 @@ const ORDER_REQUEST_TEMPLATE: &str = r###"<?xml version="1.0" encoding="UTF-8"?>
         </From>
         <To>
             <Credential domain="NetworkId">
-                <Identity>punchout.crowdfox.test</Identity>
+                <Identity>punchout.test</Identity>
             </Credential>
         </To>
         <Sender>
