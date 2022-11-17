@@ -25,4 +25,4 @@ COPY --link --from=oci-srm-server-mock-binary /oci-srm-server-mock /oci-srm-serv
 
 EXPOSE 8089
 
-CMD /oci-srm-server-mock
+CMD ["/oci-srm-server-mock"]
