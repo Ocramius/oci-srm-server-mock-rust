@@ -22,7 +22,6 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-          target: production
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

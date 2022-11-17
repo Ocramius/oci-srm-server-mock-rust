@@ -16,7 +16,6 @@ jobs:
       - name: "Build docker image"
         uses: "docker/build-push-action@v3"
         with:
-          target: "development"
           tags: "ghcr.io/ocramius/oci-srm-server-mock-rust:test-image"
           push: "false"
           load: "true"
