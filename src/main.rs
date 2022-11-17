@@ -7,6 +7,7 @@ use std::env;
 use actix_web::error::{ErrorBadRequest, ErrorInternalServerError, ErrorNotFound};
 use chrono::Utc;
 use hyper::{Body, body, Client, Request};
+use hyper_trust_dns::TrustDnsResolver;
 use url::Url;
 use urlencoding::encode;
 use uuid::Uuid;
@@ -345,7 +346,8 @@ async fn confirm_oci_payment_with_oci_process_id(
 
                             process.cxml_request = Some(xml_string.clone());
 
-                            let cxml_response = Client::new()
+                            let cxml_response = Client::builder()
+                                .build(TrustDnsResolver::from_system_conf().into_http_connector())
                                 .request(
                                     Request::post(punchout_server_confirmation_uri.to_string())
                                         .header("Content-Type", "text/xml")
