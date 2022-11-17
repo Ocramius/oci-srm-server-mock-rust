@@ -17,10 +17,10 @@ struct OciProcess {
     id: Uuid,
     // We don't know what shape the data submitted to the SRM server has: it can be anything,
     // so we keep it as a JSON Value, which pretty much matches that.
-    #[serde(alias = "POST")]
+    #[serde(rename = "POST")]
     call_up_posted_data: Option<serde_json::Value>,
     cxml_request: Option<String>,
-    #[serde(alias = "cXMLResponse")]
+    #[serde(rename = "cXMLResponse")]
     cxml_response: Option<String>,
 }
 
