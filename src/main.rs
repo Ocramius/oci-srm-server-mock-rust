@@ -158,15 +158,25 @@ async fn start_oci(
     let mut login = data.punchout_server_login_uri.clone();
 
     login.set_query(Some(
-        oci_login_parameters
-            .iter()
-            .map(|(key, value)| {
-                format!("{}={}", encode(key), encode(value))
-            })
-            .fold(String::new(), |accumulator, segment| {
-                format!("{}&{}", accumulator, segment)
-            })
-            .trim_start_matches(['&'])
+        format!(
+            "{}{}",
+            oci_login_parameters
+                .iter()
+                .map(|(key, value)| {
+                    format!("{}={}", encode(key), encode(value))
+                })
+                .fold(String::new(), |accumulator, segment| {
+                    format!("{}&{}", accumulator, segment)
+                })
+                .trim_start_matches(['&']),
+            // Note: would be nicer to do `oci_login_parameters.extend()`, but parsing the query
+            //       seems really complex here.
+            login.query()
+                .map(|query| {
+                    format!("&{}", query)
+                })
+                .unwrap_or(String::new())
+        ).as_str()
     ));
 
     HttpResponse::Found()
