@@ -405,7 +405,7 @@ async fn main() -> std::io::Result<()> {
             .route("/oci-call-up/{ociProcessId}", web::post().to(oci_call_up_with_oci_process_id))
             .route("/confirm-oci-payment/{ociProcessId}", web::get().to(confirm_oci_payment_with_oci_process_id))
     })
-        .bind(("0.0.0.0", 8089))?
+        .bind(("0.0.0.0", 80))?
         .run()
         .await
 }

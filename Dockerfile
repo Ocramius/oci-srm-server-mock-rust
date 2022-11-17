@@ -23,6 +23,6 @@ FROM scratch AS oci-srm-server-mock
 
 COPY --link --from=oci-srm-server-mock-binary /oci-srm-server-mock /oci-srm-server-mock
 
-EXPOSE 8089
+EXPOSE 80
 
 CMD ["/oci-srm-server-mock"]
