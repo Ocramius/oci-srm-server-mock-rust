@@ -178,7 +178,6 @@ async fn start_oci(
     ));
 
     HttpResponse::Found()
-        // @TODO add session header?
         .insert_header(("Location", login.to_string()))
         .finish()
 }
@@ -196,8 +195,6 @@ async fn oci_call_up_with_oci_process_id(
         .get_mut(&oci_process_id);
 
     let parsed_body = info.clone();
-
-    // @TODO verify session here? The client should be the same one that created this process.
 
     match process {
         None => Err(
@@ -238,7 +235,7 @@ async fn confirm_oci_payment_with_oci_process_id(
             ErrorNotFound(format!("Could not find process {}", oci_process_id))
         ),
 
-        // @TODO Ugly: we are modifying the collection by reference...
+        // Ugly: we are modifying the collection by reference here...
         Some(mut process) => {
             // Note: there is no simple way to parse POST parameters from OCI parameters:
             //        * `NEW_ITEM-EXT_PRODUCT_ID` with both dashes and underscores (can't match struct)
