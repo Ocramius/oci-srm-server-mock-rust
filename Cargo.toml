@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # Main HTTP framework, used to configure routing and set up aqn HTTP server
-actix-web = "^4.1.2"
+actix-web = "^4.2.1"
 
 # Serialization: convert things from/to JSON
 serde = { version = "^1.0.147", features = ["derive"] }
@@ -17,14 +17,14 @@ serde_json = "^1.0.87"
 url = { version = "^2.3.1", features = ["serde"] }
 urlencoding = "^2.1.2"
 
-uuid = { version = "^1.2.1", features = ["serde", "v4"] }
-chrono = "^0.4.22"
+uuid = { version = "^1.2.2", features = ["serde", "v4"] }
+chrono = "^0.4.23"
 
 # HTTP Client
-hyper = { version = "^0.14.22", features = ["full"] }
+hyper = { version = "^0.14.23", features = ["full"] }
 hyper-trust-dns = { version = "^0.5.0", features = ["system-config"] }
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=1.0.36"
+thiserror = "=1.0.37"
 
 # Static analysis
 no-panic = "^0.1.16"
