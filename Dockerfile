@@ -1,4 +1,4 @@
-FROM rust:1.66.0-slim-bullseye AS builder
+FROM rust:1.66.1-slim-bullseye AS builder
 
 FROM builder AS oci-srm-server-mock-binary
 
