@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # Main HTTP framework, used to configure routing and set up aqn HTTP server
-actix-web = "^4.2.1"
+actix-web = "^4.3.0"
 
 # Serialization: convert things from/to JSON
 serde = { version = "^1.0.152", features = ["derive"] }
