@@ -1,7 +1,5 @@
 FROM rust:1.67.0-slim-bullseye AS builder
 
-FROM builder AS oci-srm-server-mock-binary
-
 COPY --link Cargo.toml \
     Cargo.lock \
     /build/
@@ -26,7 +24,7 @@ ENV OCI_SRM_SERVER_MOCK_PORT="80" \
     PUNCHOUT_SERVER_LOGIN_URI="http://punchout-server/punch-in?foo=bar&pass=example-supersecret" \
     PUNCHOUT_SERVER_CONFIRMATION_URI="http://punchout-server/cxml-order-request-endpoint"
 
-COPY --link --from=oci-srm-server-mock-binary /oci-srm-server-mock /oci-srm-server-mock
+COPY --link --from=builder /oci-srm-server-mock /oci-srm-server-mock
 
 EXPOSE 80
 
