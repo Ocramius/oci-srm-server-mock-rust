@@ -948,9 +948,9 @@ dependencies = [
 
 [[package]]
 name = "no-panic"
-version = "0.1.17"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "288807bc867d10bf77d74614d8287230394b3afc49c2716f09d1ff11bb6a3741"
+checksum = "9f3ff7cb37ce690ee3b1bab16e77f6eae6320d91a9770ec1497f58a88c1f35c9"
 dependencies = [
  "proc-macro2",
  "quote",

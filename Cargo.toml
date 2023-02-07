@@ -27,7 +27,7 @@ hyper-trust-dns = { version = "^0.5.0", features = ["system-config"] }
 thiserror = "=1.0.38"
 
 # Static analysis
-no-panic = "^0.1.17"
+no-panic = "^0.1.19"
 
 # Async handling, mutex
 tokio = "^1.25.0"
