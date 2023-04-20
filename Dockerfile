@@ -1,4 +1,4 @@
-FROM rust:1.68.2-slim-bullseye AS builder
+FROM rust:1.69.0-slim-bullseye AS builder
 
 COPY --link Cargo.toml \
     Cargo.lock \
