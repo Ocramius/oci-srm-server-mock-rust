@@ -11,7 +11,7 @@ actix-web = "^4.3.1"
 
 # Serialization: convert things from/to JSON
 serde = { version = "^1.0.166", features = ["derive"] }
-serde_json = "^1.0.99"
+serde_json = "^1.0.100"
 
 # Parse URLs into values
 url = { version = "^2.4.0", features = ["serde"] }
@@ -24,10 +24,10 @@ chrono = "^0.4.26"
 hyper = { version = "^0.14.27", features = ["full"] }
 hyper-trust-dns = { version = "^0.5.0", features = ["system-config"] }
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=1.0.40"
+thiserror = "=1.0.41"
 
 # Static analysis
-no-panic = "^0.1.24"
+no-panic = "^0.1.25"
 
 # Async handling, mutex
 tokio = "^1.29.1"
