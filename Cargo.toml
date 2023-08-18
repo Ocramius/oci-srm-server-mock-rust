@@ -24,13 +24,13 @@ chrono = "^0.4.26"
 hyper = { version = "^0.14.27", features = ["full"] }
 hyper-trust-dns = { version = "^0.5.0", features = ["system-config"] }
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=1.0.46"
+thiserror = "=1.0.47"
 
 # Static analysis
 no-panic = "^0.1.26"
 
 # Async handling, mutex
-tokio = "^1.31.0"
+tokio = "^1.32.0"
 
 [profile.release]
 opt-level = "z"     # Optimize for size. This app is not performance-sensitive, but downloaded often.
