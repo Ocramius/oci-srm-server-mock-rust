@@ -9,8 +9,7 @@ run:
 
 build:
 	nix build .\#docker-image
-	IMG_ID=$$(docker load -i result | sed -nr 's/^Loaded image: (.*)$/\1/p' | xargs -I{} docker image ls "{}" --format="{{.ID}}")
-	docker tag $$IMG_ID ci-srm-server-mock:latest
+	docker tag $$(docker load -i result | sed -nr 's/^Loaded image: (.*)$$/\1/p' | xargs -I{} docker image ls "{}" --format="{{.ID}}") oci-srm-server-mock:latest
 
 docker:
 	docker run \
