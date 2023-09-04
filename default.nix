@@ -14,20 +14,12 @@
   # , protobuf     # Optional
 }:
 
-let
-  cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
-in
+let cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
 
-naersk.lib."${targetPlatform.system}".buildPackage rec {
+in naersk.lib."${targetPlatform.system}".buildPackage rec {
   src = ./.;
 
-  buildInputs = [
-    rustfmt
-    pkg-config
-    cargo
-    rustc
-    libiconv
-  ];
+  buildInputs = [ rustfmt pkg-config cargo rustc libiconv ];
   checkInputs = [ cargo rustc ];
 
   doCheck = true;

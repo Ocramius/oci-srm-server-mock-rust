@@ -11,13 +11,9 @@
   outputs = { self, nixpkgs, naersk }:
     let
       cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
-      supportedSystems = [
-        "x86_64-unknown-linux-musl"
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-      ];
-      forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" ];
+      forAllSystems = f:
+        nixpkgs.lib.genAttrs supportedSystems (system: f system);
     in
     {
       overlay = final: prev: {
@@ -28,31 +24,31 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [
-              self.overlay
-            ];
+            overlays = [ self.overlay ];
           };
         in
         {
           "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
           haha = pkgs.dockerTools.buildImage {
-           name = "haha";
-           config = { Cmd = [ "${pkgs.${cargoToml.package.name}}/bin/oci-srm-server-mock" ]; };
-         };
+            name = "haha";
+            config = {
+              Cmd =
+                [ "${pkgs.${cargoToml.package.name}}/bin/oci-srm-server-mock" ];
+            };
+          };
         });
 
-      defaultPackage = forAllSystems (system: (import nixpkgs {
-        inherit system;
-        overlays = [ self.overlay ];
-      })."${cargoToml.package.name}");
+      defaultPackage = forAllSystems (system:
+        (import nixpkgs {
+          inherit system;
+          overlays = [ self.overlay ];
+        })."${cargoToml.package.name}");
 
       checks = forAllSystems (system:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [
-              self.overlay
-            ];
+            overlays = [ self.overlay ];
           };
         in
         {
@@ -74,13 +70,8 @@
           };
         in
         pkgs.mkShell {
-          inputsFrom = with pkgs; [
-            pkgs."${cargoToml.package.name}"
-          ];
-          buildInputs = with pkgs; [
-            rustfmt
-            nixpkgs-fmt
-          ];
+          inputsFrom = with pkgs; [ pkgs."${cargoToml.package.name}" ];
+          buildInputs = with pkgs; [ rustfmt nixpkgs-fmt ];
           # @TODO Unnecessary?
           #LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         });
