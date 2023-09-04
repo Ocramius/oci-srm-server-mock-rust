@@ -12,11 +12,10 @@
     let
       cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
       supportedSystems = [
-        #"x86_64-unknown-linux-gnu"
-        #"x86_64-unknown-linux-musl"
+        "x86_64-unknown-linux-musl"
         "x86_64-linux"
-        #"aarch64-linux"
-        #"x86_64-darwin"
+        "aarch64-linux"
+        "x86_64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
     in

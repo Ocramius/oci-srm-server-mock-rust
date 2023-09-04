@@ -32,6 +32,9 @@ naersk.lib."${targetPlatform.system}".buildPackage rec {
 
   doCheck = true;
   CARGO_BUILD_INCREMENTAL = "false";
+  # static compilation requires more work: https://github.com/nix-community/naersk/blob/78789c30d64dea2396c9da516bbcc8db3a475207/examples/static-musl/flake.nix#L1-L49
+  #CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
+  #CARGO_BUILD_RUSTFLAGS ="-C target-feature=+crt-static";
   RUST_BACKTRACE = "full";
   copyLibs = true;
 
