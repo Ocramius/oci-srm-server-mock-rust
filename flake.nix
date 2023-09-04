@@ -34,6 +34,13 @@
             config = {
               Cmd =
                 [ "${pkgs.${cargoToml.package.name}}/bin/oci-srm-server-mock" ];
+              Env = [
+                "OCI_SRM_SERVER_MOCK_PORT=80"
+                "OCI_SRM_SERVER_MOCK_BASE_URL=http://oci-srm-server-mock/"
+                "PUNCHOUT_SERVER_LOGIN_URI=http://punchout-server/punch-in?foo=bar&pass=example-supersecret"
+                "PUNCHOUT_SERVER_CONFIRMATION_URI=http://punchout-server/cxml-order-request-endpoint"
+              ];
+              ExposedPorts = { "80/tcp" = { }; };
             };
           };
         });
