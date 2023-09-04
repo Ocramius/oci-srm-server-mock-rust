@@ -11,7 +11,13 @@
   outputs = { self, nixpkgs, naersk }:
     let
       cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" ];
+      supportedSystems = [
+        #"x86_64-unknown-linux-gnu"
+        #"x86_64-unknown-linux-musl"
+        "x86_64-linux"
+        #"aarch64-linux"
+        #"x86_64-darwin"
+      ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
     in
     {
@@ -30,8 +36,11 @@
         in
         {
           "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
+          haha = pkgs.dockerTools.buildImage {
+           name = "haha";
+           config = { Cmd = [ "${pkgs.${cargoToml.package.name}}/bin/oci-srm-server-mock" ]; };
+         };
         });
-
 
       defaultPackage = forAllSystems (system: (import nixpkgs {
         inherit system;
@@ -74,7 +83,7 @@
             nixpkgs-fmt
           ];
           # @TODO Unnecessary?
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          #LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         });
     };
 }
