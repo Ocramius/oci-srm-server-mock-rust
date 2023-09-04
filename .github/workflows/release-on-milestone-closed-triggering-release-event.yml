@@ -1,9 +1,3 @@
-# Alternate workflow example.
-# This one is identical to the one in release-on-milestone.yml, with one change:
-# the Release step uses the ORGANIZATION_ADMIN_TOKEN instead, to allow it to
-# trigger a release workflow event. This is useful if you have other actions
-# that intercept that event.
-
 name: "Automatic Releases"
 
 on:
