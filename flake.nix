@@ -30,7 +30,7 @@
         {
           "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
           haha = pkgs.dockerTools.buildImage {
-            name = "haha";
+            name = "oci-srm-server-mock-rust";
             config = {
               Cmd =
                 [ "${pkgs.${cargoToml.package.name}}/bin/oci-srm-server-mock" ];
