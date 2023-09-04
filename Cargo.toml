@@ -2,6 +2,7 @@
 
 [package]
 name = "oci-srm-server-mock"
+description = "Mock server for simulating OCI Call-Up / Punch-In / Punch-Out interactions in B2B enterprise eCommerce test scenarios"
 version = "0.1.0"
 edition = "2021"
 
