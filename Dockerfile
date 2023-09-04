@@ -1,3 +1,4 @@
+# @TODO this file is to be removed: it only exists for reference, until we can get static compilation to work in Nix too
 FROM rust:1.72.0-slim-bullseye AS builder
 
 COPY --link Cargo.toml \
