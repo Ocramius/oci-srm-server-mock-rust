@@ -29,7 +29,7 @@
         in
         {
           "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
-          docker-image = pkgs.dockerTools.buildImage {
+          docker-image = pkgs.dockerTools.buildLayeredImage {
             name = "oci-srm-server-mock-rust";
             config = {
               Cmd =
