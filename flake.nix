@@ -1,39 +1,62 @@
-# https://github.com/Hoverbear/hoverbear.org/blob/417d50e1050cf201c88e74681074803a86ccd018/content/blog/2021-06-25-a-flake-for-your-crate/index.md#flakenix
 {
-  description = "My cute Rust crate!";
+  description = "oci-srm-server-mock, mocks interactions for OCI PunchOut/PunchIn and Call-Up interactions";
 
   inputs = {
+    fenix.url = "github:nix-community/fenix";
+    flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     naersk.url = "github:nmattia/naersk";
     naersk.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, naersk }:
-    let
-      cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" ];
-      forAllSystems = f:
-        nixpkgs.lib.genAttrs supportedSystems (system: f system);
-    in
-    {
-      overlay = final: prev: {
-        "${cargoToml.package.name}" = final.callPackage ./. { inherit naersk; };
-      };
+  outputs = { self, fenix, flake-utils, nixpkgs, naersk }:
+    flake-utils.lib.eachDefaultSystem (
+      system: let
+        pkgs = (import nixpkgs) {
+          inherit system;
+        };
 
-      packages = forAllSystems (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlay ];
-          };
-        in
-        {
-          "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
+        toolchain = with fenix.packages.${system};
+          combine [
+            minimal.rustc
+            minimal.cargo
+            targets.x86_64-unknown-linux-musl.latest.rust-std
+          ];
+
+        naersk' = naersk.lib.${system}.override {
+          cargo = toolchain;
+          rustc = toolchain;
+        };
+
+        built = naersk'.buildPackage {
+          src = ./.;
+          doCheck = true;
+          nativeBuildInputs = with pkgs; [ pkgsStatic.stdenv.cc ];
+
+          # Tells Cargo that we're building for musl.
+          # (https://doc.rust-lang.org/cargo/reference/config.html#buildtarget)
+          CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
+
+          # Tells Cargo to enable static compilation.
+          # (https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags)
+          #
+          # Note that the resulting binary might still be considered dynamically
+          # linked by ldd, but that's just because the binary might have
+          # position-independent-execution enabled.
+          # (see: https://github.com/rust-lang/rust/issues/79624#issuecomment-737415388)
+          CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
+
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+        };
+      in {
+        packages = {
+          defaultPackage = built;
+
           docker-image = pkgs.dockerTools.buildLayeredImage {
             name = "oci-srm-server-mock-rust";
             config = {
               Cmd =
-                [ "${pkgs.${cargoToml.package.name}}/bin/oci-srm-server-mock" ];
+                [ "${built}/bin/oci-srm-server-mock" ];
               Env = [
                 "OCI_SRM_SERVER_MOCK_PORT=80"
                 "OCI_SRM_SERVER_MOCK_BASE_URL=http://oci-srm-server-mock/"
@@ -43,44 +66,7 @@
               ExposedPorts = { "80/tcp" = { }; };
             };
           };
-        });
-
-      defaultPackage = forAllSystems (system:
-        (import nixpkgs {
-          inherit system;
-          overlays = [ self.overlay ];
-        })."${cargoToml.package.name}");
-
-      checks = forAllSystems (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlay ];
-          };
-        in
-        {
-          format = pkgs.runCommand "check-format"
-            {
-              buildInputs = with pkgs; [ rustfmt cargo ];
-            } ''
-            #${pkgs.rustfmt}/bin/cargo-fmt fmt --manifest-path ${./.}/Cargo.toml -- --check
-            ${pkgs.nixpkgs-fmt}/bin/nixpkgs-fmt --check ${./.}
-            touch $out # it worked!
-          '';
-          "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
-        });
-      devShell = forAllSystems (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlay ];
-          };
-        in
-        pkgs.mkShell {
-          inputsFrom = with pkgs; [ pkgs."${cargoToml.package.name}" ];
-          buildInputs = with pkgs; [ rustfmt nixpkgs-fmt ];
-          # @TODO Unnecessary?
-          #LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-        });
-    };
+        };
+      }
+    );
 }
