@@ -17,7 +17,6 @@ docker:
 	    -e PUNCHOUT_SERVER_CONFIRMATION_URI=http://localhost:1111/ \
 	    -e OCI_SRM_SERVER_MOCK_BASE_URL=http://localhost:8089/ \
 	    -e OCI_SRM_SERVER_MOCK_PORT=80 \
-	    -p 80:80 \
+	    -p 8089:80 \
 	    --rm \
-	    oci-srm-server-mock \
-	    /oci-srm-server-mock
+	    oci-srm-server-mock
