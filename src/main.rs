@@ -206,7 +206,7 @@ async fn oci_call_up_with_oci_process_id(
 
             active_processes
                 .entry(oci_process_id)
-                .and_modify(|mut existing| {
+                .and_modify(|existing| {
                     existing.call_up_posted_data = Some(parsed_body)
                 });
 
@@ -236,7 +236,7 @@ async fn confirm_oci_payment_with_oci_process_id(
         ),
 
         // Ugly: we are modifying the collection by reference here...
-        Some(mut process) => {
+        Some(process) => {
             // Note: there is no simple way to parse POST parameters from OCI parameters:
             //        * `NEW_ITEM-EXT_PRODUCT_ID` with both dashes and underscores (can't match struct)
             //        * `NEW_ITEM-EXT_PRODUCT_ID[x]` with x starting at 1 (can't match `Vec`)

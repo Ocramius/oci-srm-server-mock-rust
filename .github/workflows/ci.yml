@@ -8,17 +8,8 @@ jobs:
     name: Build CI container
     runs-on: ubuntu-latest
     steps:
-      - name: "Install BuildX"
-        uses: docker/setup-buildx-action@v2
-        with:
-          install: true
-
-      - name: "Build docker image"
-        uses: "docker/build-push-action@v4"
-        with:
-          tags: "ghcr.io/ocramius/oci-srm-server-mock-rust:test-image"
-          push: "false"
-          load: "true"
-          cache-from: "type=gha,scope=ci-cache"
-          cache-to: "type=gha,mode=max,scope=ci-cache"
-
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v4
+      - uses: DeterminateSystems/magic-nix-cache-action@v2
+      - run: nix flake check
+      - run: nix build .\#docker-image
