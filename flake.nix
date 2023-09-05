@@ -45,8 +45,6 @@
           # position-independent-execution enabled.
           # (see: https://github.com/rust-lang/rust/issues/79624#issuecomment-737415388)
           CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
-
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         };
       in {
         packages = {
