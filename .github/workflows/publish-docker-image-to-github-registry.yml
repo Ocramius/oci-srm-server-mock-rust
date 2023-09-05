@@ -24,7 +24,7 @@ jobs:
 
       - name: Push docker image to ghcr.io
         run: |
-          IMG_ID=$$(docker load -i result | sed -nr 's/^Loaded image: (.*)$/\1/p' | xargs -I{} docker image ls "{}" --format="{{.ID}}")
+          IMG_ID=$(docker load -i result | sed -nr 's/^Loaded image: (.*)$/\1/p' | xargs -I{} docker image ls "{}" --format="{{.ID}}")
           echo "Tagging $IMG_ID"
           docker tag $IMG_ID ghcr.io/ocramius/oci-srm-server-mock-rust:${{ github.event.release.tag_name }}
           docker push ghcr.io/ocramius/oci-srm-server-mock-rust:${{ github.event.release.tag_name }}
