@@ -17,7 +17,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: DeterminateSystems/nix-installer-action@v6
+      - uses: DeterminateSystems/nix-installer-action@v7
       - uses: DeterminateSystems/magic-nix-cache-action@v2
       - run: nix flake check
       - run: nix build .\#docker-image
