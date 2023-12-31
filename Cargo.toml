@@ -25,7 +25,7 @@ chrono = "^0.4.31"
 hyper = { version = "^0.14.28", features = ["full"] }
 hyper-trust-dns = { version = "^0.5.0", features = ["system-config"] }
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=1.0.52"
+thiserror = "=1.0.53"
 
 # Static analysis
 no-panic = "^0.1.27"
