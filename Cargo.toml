@@ -19,7 +19,7 @@ url = { version = "^2.5.0", features = ["serde"] }
 urlencoding = "^2.1.3"
 
 uuid = { version = "^1.7.0", features = ["serde", "v4"] }
-chrono = "^0.4.32"
+chrono = "^0.4.33"
 
 # HTTP Client
 hyper = { version = "^0.14.28", features = ["full"] }
