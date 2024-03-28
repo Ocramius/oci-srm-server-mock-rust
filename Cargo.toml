@@ -31,7 +31,7 @@ thiserror = "=1.0.58"
 no-panic = "^0.1.29"
 
 # Async handling, mutex
-tokio = "^1.36.0"
+tokio = "^1.37.0"
 
 [profile.release]
 opt-level = "z"     # Optimize for size. This app is not performance-sensitive, but downloaded often.
