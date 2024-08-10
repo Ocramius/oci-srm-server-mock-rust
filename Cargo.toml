@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 # Main HTTP framework, used to configure routing and set up aqn HTTP server
-actix-web = { version = "^4.8.0",  features = [ "cookies", "secure-cookies", "macros", "rustls", "compress-brotli", "compress-gzip" ], default-features = false }
+actix-web = { version = "^4.9.0",  features = [ "cookies", "secure-cookies", "macros", "rustls", "compress-brotli", "compress-gzip" ], default-features = false }
 
 # Serialization: convert things from/to JSON
 serde = { version = "^1.0.205", features = ["derive"] }
