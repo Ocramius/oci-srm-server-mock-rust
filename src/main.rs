@@ -6,8 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use actix_web::error::{ErrorBadRequest, ErrorInternalServerError, ErrorNotFound};
 use chrono::Utc;
-use hyper::{Body, body, Client, Request};
-use hyper_trust_dns::TrustDnsResolver;
+use hyper::Request;
+use hyper_util::client::legacy::Client;
+use hyper_hickory::HickoryResolver;
+use http_body_util::BodyExt;
+use hyper_util::rt::TokioExecutor;
 use url::Url;
 use urlencoding::encode;
 use uuid::Uuid;
@@ -343,13 +346,13 @@ async fn confirm_oci_payment_with_oci_process_id(
 
                             process.cxml_request = Some(xml_string.clone());
 
-                            let cxml_response = Client::builder()
-                                .build(TrustDnsResolver::from_system_conf().into_http_connector())
+                            let cxml_response = Client::builder(TokioExecutor::new())
+                                .build(HickoryResolver::default().into_http_connector())
                                 .request(
                                     Request::post(punchout_server_confirmation_uri.to_string())
-                                        .header("Content-Type", "text/xml")
-                                        .header("Content-Encoding", "utf8")
-                                        .body(Body::from(xml_string))
+                                        .header(hyper::header::CONTENT_TYPE, "text/xml")
+                                        .header(hyper::header::CONTENT_ENCODING, "utf8")
+                                        .body(xml_string)
                                         .expect(
                                             r###"
                                             This can only fail if the request builder is misused,
@@ -364,9 +367,9 @@ async fn confirm_oci_payment_with_oci_process_id(
 
                             match cxml_response {
                                 Ok(cxml_response) => {
-                                    match body::to_bytes(cxml_response.into_body()).await {
+                                    match cxml_response.collect().await {
                                         Ok(cxml_response_bytes) => {
-                                            match String::from_utf8(cxml_response_bytes.to_vec()) {
+                                            match String::from_utf8(cxml_response_bytes.to_bytes().to_vec()) {
                                                 Ok(cxml_response_string) => {
                                                     process.cxml_response = Some(cxml_response_string);
 
