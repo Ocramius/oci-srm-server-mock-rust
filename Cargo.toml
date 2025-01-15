@@ -22,8 +22,10 @@ uuid = { version = "^1.12.0", features = ["serde", "v4"] }
 chrono = "^0.4.39"
 
 # HTTP Client
-hyper = { version = "^0.14.32", features = ["full"] }
-hyper-trust-dns = { version = "^0.5.0", features = ["system-config"] }
+hyper = { version = "^1.5.2", features = ["full"] }
+hyper-util = { version = "^0.1.10", features = ["http2"] }
+hyper-hickory = { version = "^0.7.0" }
+http-body-util = "^0.1.2"
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
 thiserror = "=2.0.11"
 
