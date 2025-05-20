@@ -23,7 +23,7 @@ chrono = "^0.4.41"
 
 # HTTP Client
 hyper = { version = "^1.6.0", features = ["full"] }
-hyper-util = { version = "^0.1.11", features = ["http2"] }
+hyper-util = { version = "^0.1.12", features = ["http2"] }
 hyper-hickory = { version = "^0.7.0" }
 http-body-util = "^0.1.3"
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
