@@ -12,13 +12,9 @@
       url = "github:nmattia/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, fenix, flake-utils, nixpkgs, naersk, rust-overlay, ... }:
+  outputs = { self, fenix, flake-utils, nixpkgs, naersk, ... }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = (import nixpkgs) {
@@ -26,32 +22,22 @@
 
           # to allow for rust-rover to be installed
           config.allowUnfree = true;
-
-          overlays = [
-            (import rust-overlay)
-          ];
         };
 
         toolchain = with fenix.packages.${system};
           combine [
             minimal.rustc
             minimal.cargo
+            stable.rust-src
+            stable.rustfmt
+            stable.clippy
+            stable.rust-analyzer
             targets.x86_64-unknown-linux-musl.latest.rust-std
           ];
 
-        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-          extensions = [
-            "rust-src"
-            "clippy"
-            "rustfmt"
-          ];
-
-          targets = [ "x86_64-unknown-linux-musl" ];
-        };
-
         naersk' = naersk.lib.${system}.override {
-          cargo = rustToolchain;
-          rustc = rustToolchain;
+          cargo = toolchain;
+          rustc = toolchain;
         };
 
         built = naersk'.buildPackage {
@@ -101,22 +87,14 @@
               pkgs.openssl
               pkgs.pkg-config
 
-              pkgs.rustc
-              pkgs.rust-analyzer
-              pkgs.cargo
               pkgs.jetbrains.rust-rover
-              rustToolchain
+              toolchain
             ];
 
             # this overwrites `~/.rust-rover/toolchain` each time
             # there should be a way to scope it to this directory instead
             shellHook = ''
-              mkdir -p ~/.rust-rover/toolchain
-
-              ln -sfn ${rustToolchain}/lib ~/.rust-rover/toolchain
-              ln -sfn ${rustToolchain}/bin ~/.rust-rover/toolchain
-
-              export RUST_SRC_PATH="$HOME/.rust-rover/toolchain/lib/rustlib/src/rust/library"
+              export RUST_SRC_PATH="${toolchain}/lib/rustlib/src/rust/library"
             '';
           };
         };
