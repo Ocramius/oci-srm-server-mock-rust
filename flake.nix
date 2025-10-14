@@ -2,24 +2,36 @@
   description = "oci-srm-server-mock, mocks interactions for OCI PunchOut/PunchIn and Call-Up interactions";
 
   inputs = {
-    fenix.url = "github:nix-community/fenix";
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    naersk.url = "github:nmattia/naersk";
-    naersk.inputs.nixpkgs.follows = "nixpkgs";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    naersk = {
+      url = "github:nmattia/naersk";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, fenix, flake-utils, nixpkgs, naersk }:
+  outputs = { self, fenix, flake-utils, nixpkgs, naersk, ... }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = (import nixpkgs) {
           inherit system;
+
+          # to allow for rust-rover to be installed
+          config.allowUnfree = true;
         };
 
         toolchain = with fenix.packages.${system};
           combine [
             minimal.rustc
             minimal.cargo
+            stable.rust-src
+            stable.rustfmt
+            stable.clippy
+            stable.rust-analyzer
             targets.x86_64-unknown-linux-musl.latest.rust-std
           ];
 
@@ -63,6 +75,27 @@
               ];
               ExposedPorts = { "80/tcp" = { }; };
             };
+          };
+        };
+
+        devShells = {
+          default = pkgs.mkShell {
+            name = "oci-srm-server-mock-rust dev shell";
+
+            nativeBuildInputs = [
+              # needed for Linux compilation overall
+              pkgs.openssl
+              pkgs.pkg-config
+
+              pkgs.jetbrains.rust-rover
+              toolchain
+            ];
+
+            # this overwrites `~/.rust-rover/toolchain` each time
+            # there should be a way to scope it to this directory instead
+            shellHook = ''
+              export RUST_SRC_PATH="${toolchain}/lib/rustlib/src/rust/library"
+            '';
           };
         };
       }
