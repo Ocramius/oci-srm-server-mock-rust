@@ -8,7 +8,7 @@ use actix_web::error::{ErrorBadRequest, ErrorInternalServerError, ErrorNotFound}
 use chrono::Utc;
 use hyper::Request;
 use hyper_util::client::legacy::Client;
-use hyper_hickory::HickoryResolver;
+use hyper_hickory::TokioHickoryResolver;
 use http_body_util::BodyExt;
 use hyper_util::rt::TokioExecutor;
 use url::Url;
@@ -347,7 +347,7 @@ async fn confirm_oci_payment_with_oci_process_id(
                             process.cxml_request = Some(xml_string.clone());
 
                             let cxml_response = Client::builder(TokioExecutor::new())
-                                .build(HickoryResolver::default().into_http_connector())
+                                .build(TokioHickoryResolver::default().into_http_connector())
                                 .request(
                                     Request::post(punchout_server_confirmation_uri.to_string())
                                         .header(hyper::header::CONTENT_TYPE, "text/xml")

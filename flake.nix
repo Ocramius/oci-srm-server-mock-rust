@@ -2,18 +2,34 @@
   description = "oci-srm-server-mock, mocks interactions for OCI PunchOut/PunchIn and Call-Up interactions";
 
   inputs = {
-    fenix.url = "github:nix-community/fenix";
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    naersk.url = "github:nmattia/naersk";
-    naersk.inputs.nixpkgs.follows = "nixpkgs";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    naersk = {
+      url = "github:nmattia/naersk";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, fenix, flake-utils, nixpkgs, naersk }:
+  outputs = { self, fenix, flake-utils, nixpkgs, naersk, rust-overlay, ... }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = (import nixpkgs) {
           inherit system;
+
+          # to allow for rust-rover to be installed
+          config.allowUnfree = true;
+
+          overlays = [
+            (import rust-overlay)
+          ];
         };
 
         toolchain = with fenix.packages.${system};
@@ -23,9 +39,19 @@
             targets.x86_64-unknown-linux-musl.latest.rust-std
           ];
 
+        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+          extensions = [
+            "rust-src"
+            "clippy"
+            "rustfmt"
+          ];
+
+          targets = [ "x86_64-unknown-linux-musl" ];
+        };
+
         naersk' = naersk.lib.${system}.override {
-          cargo = toolchain;
-          rustc = toolchain;
+          cargo = rustToolchain;
+          rustc = rustToolchain;
         };
 
         built = naersk'.buildPackage {
@@ -63,6 +89,35 @@
               ];
               ExposedPorts = { "80/tcp" = { }; };
             };
+          };
+        };
+
+        devShells = {
+          default = pkgs.mkShell {
+            name = "oci-srm-server-mock-rust dev shell";
+
+            nativeBuildInputs = [
+              # needed for Linux compilation overall
+              pkgs.openssl
+              pkgs.pkg-config
+
+              pkgs.rustc
+              pkgs.rust-analyzer
+              pkgs.cargo
+              pkgs.jetbrains.rust-rover
+              rustToolchain
+            ];
+
+            # this overwrites `~/.rust-rover/toolchain` each time
+            # there should be a way to scope it to this directory instead
+            shellHook = ''
+              mkdir -p ~/.rust-rover/toolchain
+
+              ln -sfn ${rustToolchain}/lib ~/.rust-rover/toolchain
+              ln -sfn ${rustToolchain}/bin ~/.rust-rover/toolchain
+
+              export RUST_SRC_PATH="$HOME/.rust-rover/toolchain/lib/rustlib/src/rust/library"
+            '';
           };
         };
       }
