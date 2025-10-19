@@ -88,6 +88,7 @@
               pkgs.pkg-config
 
               pkgs.jetbrains.rust-rover
+              pkgs.nixd # language server
               toolchain
             ];
 
