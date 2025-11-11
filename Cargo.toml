@@ -22,7 +22,7 @@ uuid = { version = "^1.18.1", features = ["serde", "v4"] }
 chrono = "^0.4.42"
 
 # HTTP Client
-hyper = { version = "^1.7.0", features = ["full"] }
+hyper = { version = "^1.8.0", features = ["full"] }
 hyper-util = { version = "^0.1.17", features = ["http2"] }
 hyper-hickory = { version = "^0.8.0", features = ["tokio"] }
 http-body-util = "^0.1.3"
