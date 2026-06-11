@@ -12,4 +12,3 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@v22
       - uses: DeterminateSystems/magic-nix-cache-action@v14
       - run: nix flake check
-      - run: nix build .\#docker-image
