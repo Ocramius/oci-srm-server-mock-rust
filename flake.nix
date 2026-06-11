@@ -28,7 +28,7 @@
           combine [
             minimal.rustc
             minimal.cargo
-            stable.rust-src
+            #stable.rust-src
             stable.rustfmt
             stable.clippy
             stable.rust-analyzer
@@ -41,9 +41,17 @@
         };
 
         built = naersk'.buildPackage {
-          src = ./.;
+          src = pkgs.lib.fileset.toSource {
+            root = ./.;
+            # we are filtering sources, to prevent re-building if we aren't changing anything Go-related
+            fileset = (pkgs.lib.fileset.unions [
+              ./src
+              ./Cargo.lock
+              ./Cargo.toml
+            ]);
+          };
+
           doCheck = true;
-          nativeBuildInputs = with pkgs; [ pkgsStatic.stdenv.cc ];
 
           # Tells Cargo that we're building for musl.
           # (https://doc.rust-lang.org/cargo/reference/config.html#buildtarget)
@@ -58,24 +66,24 @@
           # (see: https://github.com/rust-lang/rust/issues/79624#issuecomment-737415388)
           CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
         };
+        docker-image = pkgs.dockerTools.buildLayeredImage {
+          name = "oci-srm-server-mock-rust";
+          config = {
+            Cmd = [ "${built}/bin/oci-srm-server-mock" ];
+            Env = [
+              "OCI_SRM_SERVER_MOCK_PORT=80"
+              "OCI_SRM_SERVER_MOCK_BASE_URL=http://oci-srm-server-mock/"
+              "PUNCHOUT_SERVER_LOGIN_URI=http://punchout-server/punch-in?foo=bar&pass=example-supersecret"
+              "PUNCHOUT_SERVER_CONFIRMATION_URI=http://punchout-server/cxml-order-request-endpoint"
+            ];
+            ExposedPorts = { "80/tcp" = { }; };
+          };
+        };
       in {
         packages = {
           defaultPackage = built;
 
-          docker-image = pkgs.dockerTools.buildLayeredImage {
-            name = "oci-srm-server-mock-rust";
-            config = {
-              Cmd =
-                [ "${built}/bin/oci-srm-server-mock" ];
-              Env = [
-                "OCI_SRM_SERVER_MOCK_PORT=80"
-                "OCI_SRM_SERVER_MOCK_BASE_URL=http://oci-srm-server-mock/"
-                "PUNCHOUT_SERVER_LOGIN_URI=http://punchout-server/punch-in?foo=bar&pass=example-supersecret"
-                "PUNCHOUT_SERVER_CONFIRMATION_URI=http://punchout-server/cxml-order-request-endpoint"
-              ];
-              ExposedPorts = { "80/tcp" = { }; };
-            };
-          };
+          docker-image = docker-image;
         };
 
         devShells = {
@@ -96,6 +104,43 @@
             # there should be a way to scope it to this directory instead
             shellHook = ''
               export RUST_SRC_PATH="${toolchain}/lib/rustlib/src/rust/library"
+            '';
+          };
+        };
+
+        checks = {
+          image-size-reasonable = pkgs.stdenv.mkDerivation {
+            name = "generated docker image has a reasonable size";
+
+            src = ./.;
+
+            dontBuild = true;
+            doCheck = true;
+
+            nativeBuildInputs = [
+              pkgs.coreutils
+            ];
+
+            installPhase = ''
+              mkdir "$out"
+            '';
+
+            checkPhase = ''
+              minimumsize=1000
+              maximumsize=9000
+              actualsize=$(du -L -k "${docker-image}" | cut -f 1)
+
+              if ! [ $actualsize -ge $minimumsize ]; then
+                echo "size is below $minimumsize kilobytes";
+
+                exit 1;
+              fi
+
+              if [ $actualsize -ge $maximumsize ]; then
+                echo "size is above $maximumsize kilobytes";
+
+                exit 1;
+              fi
             '';
           };
         };
