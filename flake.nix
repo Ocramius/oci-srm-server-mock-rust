@@ -146,6 +146,7 @@
 
           container-listens-to-http-traffic = pkgs.testers.runNixOSTest {
             name = "Verify that the started container is listening on port 80";
+            globalTimeout = 120;
 
             nodes.machine = { config, pkgs, ... }: {
               environment.systemPackages = [
