@@ -159,8 +159,6 @@
                 ports      = ["127.0.0.1:8080:80"]; 
                 log-driver = "journald";
               };
-
-              #system.stateVersion = "26.05";
             };
 
             testScript = ''
