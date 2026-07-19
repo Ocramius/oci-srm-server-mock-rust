@@ -11,7 +11,7 @@ edition = "2021"
 actix-web = { version = "^4.14.0",  features = [ "cookies", "secure-cookies", "macros", "rustls", "compress-brotli", "compress-gzip" ], default-features = false }
 
 # Serialization: convert things from/to JSON
-serde = { version = "^1.0.228", features = ["derive"] }
+serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.150"
 
 # Parse URLs into values
@@ -27,10 +27,10 @@ hyper-util = { version = "^0.1.20", features = ["http2"] }
 hyper-hickory = { version = "^0.8.0", features = ["tokio"] }
 http-body-util = "^0.1.4"
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=2.0.18"
+thiserror = "=2.0.19"
 
 # Static analysis
-no-panic = "^0.1.36"
+no-panic = "^0.1.37"
 
 # Async handling, mutex
 tokio = "^1.53.0"
