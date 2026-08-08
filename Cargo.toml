@@ -27,7 +27,7 @@ hyper-util = { version = "^0.1.20", features = ["http2"] }
 hyper-hickory = { version = "^0.8.0", features = ["tokio"] }
 http-body-util = "^0.1.4"
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=2.0.19"
+thiserror = "=2.0.20"
 
 # Static analysis
 no-panic = "^0.1.37"
