@@ -143,6 +143,32 @@
               fi
             '';
           };
+
+          container-listens-to-http-traffic = pkgs.testers.runNixOSTest {
+            name = "Verify that the started container is listening on port 80";
+            globalTimeout = 120;
+
+            nodes.machine = { config, pkgs, ... }: {
+              environment.systemPackages = [
+                pkgs.curl
+              ];
+
+              virtualisation.oci-containers.containers.demo = {
+                image      = "localhost/${docker-image.imageName}:${docker-image.imageTag}";
+                pull       = "never";
+                imageFile  = docker-image;
+                ports      = ["127.0.0.1:8080:80"]; 
+                log-driver = "journald";
+              };
+            };
+
+            testScript = ''
+              start_all()
+
+              machine.wait_for_open_port(8080)
+              machine.succeed("curl -f http://localhost:8080/active-oci-processes")
+            '';
+          };
         };
       }
     );
