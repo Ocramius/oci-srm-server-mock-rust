@@ -23,11 +23,11 @@ chrono = "^0.4.45"
 
 # HTTP Client
 hyper = { version = "^1.11.1", features = ["full"] }
-hyper-util = { version = "^0.1.20", features = ["http2"] }
+hyper-util = { version = "^0.1.21", features = ["http2"] }
 hyper-hickory = { version = "^0.8.0", features = ["tokio"] }
 http-body-util = "^0.1.5"
 # thiserror 1.0.37 includes nightly-only `provide_any` rust feature
-thiserror = "=2.0.20"
+thiserror = "=2.0.21"
 
 # Static analysis
 no-panic = "^0.1.37"
